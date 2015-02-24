@@ -309,40 +309,43 @@ class Kernel:
         
         # prevent other threads from stomping all over us.
         self._respondLock.acquire()
-
-        # Add the session, if it doesn't already exist
-        self._addSession(sessionID)
-
-        # split the input into discrete sentences
-        sentences = Utils.sentences(input)
         finalResponse = ""
-        for s in sentences:
-            # Add the input to the history list before fetching the
-            # response, so that <input/> tags work properly.
-            inputHistory = self.getPredicate(self._inputHistory, sessionID)
-            inputHistory.append(s)
-            while len(inputHistory) > self._maxHistorySize:
-                inputHistory.pop(0)
-            self.setPredicate(self._inputHistory, inputHistory, sessionID)
-            
-            # Fetch the response
-            response = self._respond(s, sessionID)
 
-            # add the data from this exchange to the history lists
-            outputHistory = self.getPredicate(self._outputHistory, sessionID)
-            outputHistory.append(response)
-            while len(outputHistory) > self._maxHistorySize:
-                outputHistory.pop(0)
-            self.setPredicate(self._outputHistory, outputHistory, sessionID)
+        try:
+            # Add the session, if it doesn't already exist
+            self._addSession(sessionID)
 
-            # append this response to the final response.
-            finalResponse += (response + "  ")
-        finalResponse = finalResponse.strip()
+            # split the input into discrete sentences
+            sentences = Utils.sentences(input)
+            for s in sentences:
+                # Add the input to the history list before fetching the
+                # response, so that <input/> tags work properly.
+                inputHistory = self.getPredicate(self._inputHistory, sessionID)
+                inputHistory.append(s)
+                while len(inputHistory) > self._maxHistorySize:
+                    inputHistory.pop(0)
+                self.setPredicate(self._inputHistory, inputHistory, sessionID)
 
-        assert(len(self.getPredicate(self._inputStack, sessionID)) == 0)
-        
-        # release the lock and return
-        self._respondLock.release()
+                # Fetch the response
+                response = self._respond(s, sessionID)
+
+                # add the data from this exchange to the history lists
+                outputHistory = self.getPredicate(self._outputHistory, sessionID)
+                outputHistory.append(response)
+                while len(outputHistory) > self._maxHistorySize:
+                    outputHistory.pop(0)
+                self.setPredicate(self._outputHistory, outputHistory, sessionID)
+
+                # append this response to the final response.
+                finalResponse += (response + "  ")
+            finalResponse = finalResponse.strip()
+
+            assert(len(self.getPredicate(self._inputStack, sessionID)) == 0)
+        except Exception as e:
+            print ""+str(e)
+        finally:
+            # release the lock and return
+            self._respondLock.release()
         try: return finalResponse.encode(self._textEncoding)
         except UnicodeError: return finalResponse
 
